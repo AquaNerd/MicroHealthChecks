@@ -2,18 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using HealthChecks.UI.Client;
-using HealthMonitor.Checks;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
+using HealthChecks.UI.Client;
 
-namespace HealthMonitor
+namespace HealthApi
 {
     public class Startup
     {
@@ -25,17 +22,13 @@ namespace HealthMonitor
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services) {
-            services
-                .AddHealthChecks()
-                .AddCheck<PingHealthCheck>("ping")
-                .AddCheck<RandomHealthCheck>("random");
-
-            services.AddHealthChecksUI(setupSettings: setup => {
-                setup.AddHealthCheckEndpoint("RandomFailingService", "http://localhost:5000/health");
-            });
-
+        public void ConfigureServices(IServiceCollection services)
+        {
             services.AddControllersWithViews();
+
+            services.AddHealthChecks()
+                .AddCheck<RandomHealthCheck>("RandomServiceFailure");
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -58,16 +51,16 @@ namespace HealthMonitor
 
             app.UseAuthorization();
 
-            app.UseHealthChecks("/healthsvc", new HealthCheckOptions {
-                Predicate = _ => true,
-                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-            }).UseHealthChecksUI((options) => {
-                options.UIPath = "/health";
-            });
-
             app.UseEndpoints(endpoints =>
             {
-                 endpoints.MapDefaultControllerRoute();
+                endpoints.MapControllerRoute(
+                    name: "default",
+                    pattern: "{controller=Home}/{action=Index}/{id?}");
+                endpoints.MapHealthChecks("/health", new HealthCheckOptions
+                {
+                    Predicate = _ => true,
+                    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+                });
             });
         }
     }
